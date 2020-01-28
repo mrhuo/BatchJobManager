@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <script src="BatchJobManager.js"></script>
+        <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+        <title>分批计算 - BatchJobManager Test</title>
+        <style>
+            * { margin: 0; padding: 0 }
+            h2 { margin-top: 30px; margin-bottom: 30px; }
+            .el-row { margin-bottom: 20px; }
+            .el-row:last-child{ margin-bottom: 0; }
+            .center { text-align: center }
+            .text-primary { color: #409EFF; }
+            .text-success { color: #67C23A; }
+            .text-danger { color: #F56C6C; }
+            .text-info { color: #909399; }
+        </style>
+    </head>
+    <body>
+        <div id="app">
+            <h2 class="center">分批计算</h2>
+            <div style="padding: 20px">
+                <el-row :gutter="20">
+                    <el-col>
+                        <div style="margin-top: 10px">
+                            <el-button size="small" icon="el-icon-search" type="primary" @click="onSubmit"
+                                :disabled="processing">开始</el-button>
+                            <el-button size="small" icon="el-icon-circle-close" type="danger" @click="onStop" :disabled="!processing">停止</el-button>
+                            <span class="text-info" style="font-size: 14px; padding-left: 20px"> 总进度： <el-progress
+                                    style="width: 300px; display: inline-block;" :text-inside="true" :stroke-width="26"
+                                    :percentage="percentage"></el-progress>
+                            </span>
+                        </div>
+                    </el-col>
+                </el-row>
+                <el-table :data="tableData" border style="width: 100%">
+                    <el-table-column prop="num" label="数字">
+                    </el-table-column>
+                    <el-table-column prop="pi" label="PI">
+                    </el-table-column>
+                    <el-table-column prop="square" label="平方">
+                    </el-table-column>
+                    <el-table-column prop="cube" label="平方">
+                    </el-table-column>
+                    <el-table-column prop="time" label="计算时间">
+                    </el-table-column>
+                </el-table>
+            </div>
+        </div>
+        <script src="https://unpkg.com/vue/dist/vue.js"></script>
+        <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+        <script type="text/javascript">
+            var data = [];
+            for (var index = 1; index <= 50; index++) {
+                data.push({
+                    num: Math.pow(index, 3),
+                    pi: null,
+                    square: null,
+                    cube: null,
+                    time: null
+                });
+            }
+            new Vue({
+                el: '#app',
+                data: function () {
+                    return {
+                        processing: false,
+                        percentage: 0,
+                        tableData: data
+                    }
+                },
+                methods: {
+                    calcFactorial: function (num) {
+                        var _calc = function (_num) {
+                            if(_num <= 1) {
+                                return 1;
+                            }
+                            return _num * _calc(--num);
+                        };
+                        return _calc(num);
+                    },
+                    calcPI: function (n) {
+                        var numInCircle = 0;
+                        var x, y, pi;
+                        for(var i = 0; i < n; i++){
+                            x = Math.random();
+                            y = Math.random();
+                            if(x * x + y * y < 1) 
+                                numInCircle++;
+                        }
+                        pi = (4.0 * numInCircle) / n;
+                        return pi;
+                    },
+                    onStop: function () {
+                        BatchJobManager.stop();
+                        
+                        var that = this;
+                        that.processing = false;
+                        that.$message.success('计算已结束.');
+                    },
+                    onSubmit: function (e) {
+                        var that = this;
+                        
+                        that.processing = true;
+                        that.$message.success('计算已开始...');
+
+                        BatchJobManager.init({
+                            allJobs: data,
+                            batchSize: 2,
+                            jobDelay: 100,
+                            jobCheckInterval: 1000,
+                            stopCallback: function () {
+                                that.processing = false;
+                                that.$message.success('计算已结束.');
+                            },
+                            jobExecutorCallback: function (jobIndex, job) {
+                                var row = that.tableData[jobIndex];
+                                var startTime = new Date();
+                                row.pi = that.calcPI(row.num);
+                                row.square = row.num * row.num;
+                                row.cube = row.num * row.num * row.num;
+                                var elasped = new Date() - startTime;
+                                row.time = elasped + "ms";
+                                that.tableData[jobIndex] = row;
+                                that.$set(that.tableData, jobIndex, row);
+                            },
+                            jobProgressCallback: function (current, total, percentage) {
+                                that.percentage = percentage;
+                            }
+                        });
+                        BatchJobManager.start();
+                    }
+                }
+            })
+        </script>
+    </body>
+</html>
