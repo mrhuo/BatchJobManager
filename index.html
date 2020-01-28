@@ -108,6 +108,7 @@
                         that.$message.success('计算已开始...');
 
                         BatchJobManager.init({
+                            debug: true,
                             allJobs: data,
                             batchSize: 2,
                             jobDelay: 100,
